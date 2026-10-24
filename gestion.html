@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3864">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<title>Gestión SAR</title>
+<style>
+:root{--fondo:#f4f6fb;--tarjeta:#fff;--texto:#1b2433;--suave:#5d6b82;--azul:#1f3864;--verde:#e2efda;--ambar:#fff2cc;--rojo:#fde2e0;--borde:#d9dfeb}
+@media (prefers-color-scheme:dark){:root{--fondo:#12161f;--tarjeta:#1b2130;--texto:#e8ecf5;--suave:#9aa7bd;--azul:#5b87d6;--verde:#24402a;--ambar:#4a3f1b;--rojo:#4a1f1b;--borde:#2c3547}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--texto);font-family:Arial,Helvetica,sans-serif;padding:max(24px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+.caja{max-width:900px;margin:0 auto}
+h1{margin:0 0 4px;font-size:24px}.sub{color:var(--suave);margin:2px 0}
+.barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
+a.btn,button{font:inherit;font-weight:bold;padding:10px 16px;border-radius:10px;border:0;cursor:pointer;text-decoration:none;display:inline-block}
+.prim{background:var(--azul);color:#fff}.sec{background:var(--tarjeta);color:var(--texto);border:1px solid var(--borde)}
+input,select{font:inherit;padding:6px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--fondo);color:var(--texto)}
+.tarjeta{background:var(--tarjeta);border:1px solid var(--borde);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{font-size:17px;margin:18px 0 8px}
+.p{background:var(--tarjeta);border:1px solid var(--borde);border-radius:10px;padding:12px;margin-bottom:10px}
+.p.apl{background:var(--rojo)}
+.cab{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font-size:12px;font-weight:bold;padding:3px 8px;border-radius:6px;background:var(--borde)}
+.tag.casa{background:var(--verde)}.tag.apl{background:#c0392b;color:#fff}
+.hora{font-size:18px}.pend{background:var(--ambar);padding:0 6px;border-radius:6px}
+.tit{margin:6px 0 2px;font-weight:bold}
+.fila{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.fila label{font-size:13px;color:var(--suave)}
+#gestado.error{color:#c0392b;font-weight:bold}
+</style></head><body><div class="caja">
+<h1>Gestión de horarios · SAR</h1>
+<p class="sub"><a href="index.html">← Volver a la app</a></p>
+
+<div class="tarjeta" id="pinbox" hidden>
+  <p id="pinmsg" class="sub">Introduce el PIN del club:</p>
+  <div class="fila"><input id="pin" type="password" inputmode="numeric" autocomplete="off" style="width:140px"><button class="prim" id="pinok">Entrar</button></div>
+</div>
+
+<div id="panel" hidden>
+  <div class="barra">
+    <button class="sec" id="ant">◀</button><b id="rango"></b><button class="sec" id="sig">▶</button>
+    <button class="sec" id="hoy">Próximo fin de semana</button>
+    <select id="geq"><option value="">Todos los equipos</option></select>
+  </div>
+  <p id="gresumen" class="sub"></p>
+  <p id="gestado" class="sub"></p>
+  <div class="barra">
+    <button class="prim" id="gexcel">⬇ Excel</button>
+    <button class="prim" id="gwa">Compartir por WhatsApp</button>
+    <button class="sec" id="gcopiar">Copiar texto</button>
+    <button class="sec" id="gact">↻ Actualizar</button>
+  </div>
+  <div id="glista"></div>
+</div>
+</div>
+<script src="datos.js"></script>
+<script src="gestion.js"></script>
+</body></html>
