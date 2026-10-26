@@ -27,6 +27,18 @@ h2{font-size:17px;margin:18px 0 8px}
 .fila{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
 .fila label{font-size:13px;color:var(--suave)}
 #gestado.error{color:#c0392b;font-weight:bold}
+table.vt{width:100%;border-collapse:collapse;font-size:15px;margin-bottom:6px}
+table.vt th{background:var(--azul);color:#fff;text-align:left;padding:8px}
+table.vt td{padding:8px;border-bottom:1px solid var(--borde)}
+.b{font-weight:bold}.sala{font-size:22px;font-weight:bold;text-align:center}.conf{color:#c0392b;font-size:15px}
+@media print{
+  body{background:#fff;color:#000;padding:0}
+  .caja>*:not(#vest){display:none!important}
+  #vest .nop{display:none!important}
+  table.vt th{background:#ddd!important;color:#000!important}
+  table.vt th,table.vt td{border:1px solid #000!important}
+  .conf{color:#000!important}.sub{color:#000!important}
+}
 </style></head><body><div class="caja">
 <h1>Gestión de horarios · SAR</h1>
 <p class="sub"><a href="index.html">← Volver a la app</a></p>
@@ -48,10 +60,17 @@ h2{font-size:17px;margin:18px 0 8px}
     <button class="prim" id="gexcel">⬇ Excel</button>
     <button class="prim" id="gwa">Compartir por WhatsApp</button>
     <button class="prim" id="gcantina">☕ CANTINA</button>
+    <button class="prim" id="gvest">🚪 VESTUARIOS</button>
     <button class="sec" id="gcopiar">Copiar texto</button>
     <button class="sec" id="gact">↻ Actualizar</button>
   </div>
   <div id="glista"></div>
+</div>
+<div id="vest" hidden>
+  <div class="barra nop"><button class="sec" id="vvolver">← Volver</button><button class="prim" id="vprint">🖨 Imprimir / guardar PDF</button></div>
+  <h1 id="vtitulo"></h1>
+  <div id="vlist"></div>
+  <p class="sub">Equipos locales: vestuarios 2 y 3 · Equipos visitantes: vestuarios 1 y 4</p>
 </div>
 </div>
 <script src="datos.js"></script>
