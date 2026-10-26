@@ -120,11 +120,26 @@ function textoWA() {
   return t.trim();
 }
 async function copiar() { try { await navigator.clipboard.writeText(textoWA()); return true; } catch { return false; } }
-async function whatsapp() {
-  const t = textoWA(), u = "https://wa.me/?text=" + encodeURIComponent(t);
-  if (u.length > 6000) { msg((await copiar()) ? "El mensaje es muy largo: lo he copiado. Pégalo en WhatsApp." : "El mensaje es muy largo: usa «Copiar texto»."); return; }
+async function enviarWA(t) {
+  const u = "https://wa.me/?text=" + encodeURIComponent(t);
+  if (u.length > 6000) { msg((await navigator.clipboard.writeText(t).then(() => true, () => false)) ? "El mensaje es muy largo: lo he copiado. Pégalo en WhatsApp." : "El mensaje es muy largo."); return; }
   window.open(u, "_blank");
 }
+const whatsapp = () => enviarWA(textoWA());
+
+// Mensaje corto para la cantina: solo partidos en casa del fin de semana (sin filtro de equipo)
+function textoCantina() {
+  const l = items.filter(i => i.casa && i.fecha >= sumarDias(sab, -1) && i.fecha <= sumarDias(sab, 1))
+    .sort((a, b) => (a.fecha + (a.hora || "99:99")).localeCompare(b.fecha + (b.hora || "99:99")) || a.r.cat.localeCompare(b.r.cat));
+  if (!l.length) return "";
+  let t = "*CANTINA · PARTIDOS EN CASA*\n", dia = "";
+  l.forEach(i => {
+    if (i.fecha !== dia) { dia = i.fecha; t += `\n*${diaTxt(dia).toUpperCase()} ${fechaTxt(dia).slice(0, 5)}*\n`; }
+    t += `${i.aplazado ? "⏸ APLAZADO" : "🕒 " + (i.hora || "hora por confirmar")} · ${i.r.cat} · ${i.mio} vs ${i.riv}\n`;
+  });
+  return t.trim();
+}
+function cantina() { const t = textoCantina(); if (t) enviarWA(t); else msg("No hay partidos en casa este fin de semana."); }
 async function excelG() {
   const b = $("gexcel"), txt = b.textContent; b.textContent = "Generando…"; b.disabled = true;
   try {
@@ -150,6 +165,7 @@ $("geq").onchange = pintar;
 $("gact").onclick = () => cargarG(true);
 $("gexcel").onclick = excelG;
 $("gwa").onclick = whatsapp;
+$("gcantina").onclick = cantina;
 $("gcopiar").onclick = async () => msg((await copiar()) ? "Texto copiado ✓" : "No se pudo copiar", false);
 $("pinok").onclick = () => { G.pin = $("pin").value.trim(); guardarG(); $("pin").value = ""; if (G.pin) cargarG(false); };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };
