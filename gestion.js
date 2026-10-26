@@ -161,7 +161,7 @@ async function excelG() {
 // Masculino / femenino según el patrocinador del equipo
 const SEXO = [[/OPMOBILITY|GLOBALMAR|NOSATUN|GOYCAR|MARODRI/i, "M"], [/RODAVIGO|IMPERNOROESTE|BLUENEWABLES/i, "F"]];
 const sexoDe = n => (SEXO.find(([re]) => re.test(n)) || [0, "?"])[1];
-const ANTES = 45, DESPUES = 30;   // minutos que ocupa el vestuario antes y después del partido
+const ANTES = 45, DESPUES = 30, DESCANSO = 10;   // el vestuario se ocupa ANTES min antes del partido y se libera DESPUES min después; DESCANSO = pausa entre las 2 partes
 // 1 = preferente (1ª Aut. masc. y DHP fem.), 2 = segunda opción (2ª Aut. masc. y 1ª Aut. fem.), 3 = base
 function nivel(i) {
   const c = (i.r.cat + " " + i.r.comp).toUpperCase(), m = sexoDe(i.mio) === "M";
@@ -170,15 +170,27 @@ function nivel(i) {
   if (/2ª AUTON[OÓ]MICA/.test(c)) return 2;
   return 3;
 }
-const durMin = i => { const c = i.r.cat.toUpperCase(); return /BENJAM/.test(c) ? 40 : /ALEV/.test(c) ? 50 : /INFANT/.test(c) ? 60 : 70; };
-function asignarVestuarios(lista) {   // partidos de casa de un mismo día -> Map(partido -> 2 | 3 | null)
+const durMin = i => {   // duración del partido en minutos
+  const c = i.r.cat.toUpperCase();
+  if (/BENJAM/.test(c)) return 4 * 10 + 3 * 3;                       // 4 partes de 10 min y 3 descansos de 3 min
+  return 2 * (/ALEV/.test(c) ? 20 : /INFANT/.test(c) ? 25 : 30) + DESCANSO;   // 2 partes de 20 / 25 / 30 min
+};
+function asignarVestuarios(lista) {   // partidos de casa de un mismo día -> Map(partido -> {sala: 2 | 3 | null, nota})
   const ocupado = { 2: [], 3: [] }, sol = new Map();
-  const libre = (sala, [a, b]) => ocupado[sala].every(([c, d]) => b <= c || a >= d);
+  const choques = (sala, [a, b]) => ocupado[sala].filter(o => !(b <= o.w[0] || a >= o.w[1]));
+  const benj = i => /BENJAM/i.test(i.r.cat);
   lista.filter(i => i.hora && !i.aplazado).sort((x, y) => nivel(x) - nivel(y) || x.hora.localeCompare(y.hora)).forEach(i => {
     const [h, m] = i.hora.split(":").map(Number), t = h * 60 + m, w = [t - ANTES, t + durMin(i) + DESPUES];
-    const pref = sexoDe(i.mio) === "F" ? 3 : 2, sala = [pref, pref === 2 ? 3 : 2].find(s => libre(s, w));
-    if (sala) ocupado[sala].push(w);
-    sol.set(i, sala || null);
+    const s = sexoDe(i.mio), pref = s === "F" ? 3 : 2, orden = [pref, pref === 2 ? 3 : 2];
+    let sala = orden.find(r => !choques(r, w).length), nota = "";
+    if (!sala && benj(i)) {   // se juntan benjamines: juntos si son del mismo sexo, por turnos si no (máximo 2 equipos a la vez)
+      const cand = orden.map(r => [r, choques(r, w)]).filter(([, c]) => c.length === 1 && benj(c[0].i));
+      const junto = cand.find(([, c]) => sexoDe(c[0].i.mio) === s), turno = cand[0];
+      if (junto) { sala = junto[0]; nota = "junto con " + junto[1][0].i.mio; }
+      else if (turno) { sala = turno[0]; nota = "por turnos con " + turno[1][0].i.mio + " · ajustar tiempos"; }
+    }
+    if (sala) ocupado[sala].push({ w, i });
+    sol.set(i, { sala: sala || null, nota });
   });
   return sol;
 }
@@ -195,10 +207,11 @@ function pintarVest() {
     ["Hora", "Categoría", "Equipo SAR", "Vestuario SAR", "Rival", "Vestuario rival"].forEach(x => el("th", x, null, tr0));
     const tb = el("tbody", null, null, t);
     lista.sort((a, b) => (a.hora || "99:99").localeCompare(b.hora || "99:99") || a.r.cat.localeCompare(b.r.cat)).forEach(i => {
-      const sala = sol.get(i), tr = el("tr", null, null, tb);
+      const r = sol.get(i) || {}, sala = r.sala, tr = el("tr", null, null, tb);
       const aviso = i.aplazado ? "APLAZADO" : !i.hora ? "FALTA HORA" : !sala ? "SIN HUECO ⚠" : "";
       el("td", i.hora || "—", "b", tr); el("td", i.r.cat, null, tr); el("td", i.mio, "b", tr);
-      el("td", aviso || sala, "sala" + (aviso ? " conf" : ""), tr);
+      const cs = el("td", aviso || sala, "sala" + (aviso ? " conf" : ""), tr);
+      if (!aviso && r.nota) el("div", r.nota, null, cs).style.cssText = "font-size:12px;font-weight:normal";
       el("td", i.riv, null, tr); el("td", aviso ? "" : sala === 2 ? 1 : 4, "sala", tr);
     });
   });
