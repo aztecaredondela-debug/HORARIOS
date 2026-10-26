@@ -157,6 +157,55 @@ async function excelG() {
   b.textContent = txt; b.disabled = false;
 }
 
+// ===== Vestuarios: cuadrante de los partidos en casa =====
+// Masculino / femenino según el patrocinador del equipo
+const SEXO = [[/OPMOBILITY|GLOBALMAR|NOSATUN|GOYCAR|MARODRI/i, "M"], [/RODAVIGO|IMPERNOROESTE|BLUENEWABLES/i, "F"]];
+const sexoDe = n => (SEXO.find(([re]) => re.test(n)) || [0, "?"])[1];
+const ANTES = 45, DESPUES = 30;   // minutos que ocupa el vestuario antes y después del partido
+// 1 = preferente (1ª Aut. masc. y DHP fem.), 2 = segunda opción (2ª Aut. masc. y 1ª Aut. fem.), 3 = base
+function nivel(i) {
+  const c = (i.r.cat + " " + i.r.comp).toUpperCase(), m = sexoDe(i.mio) === "M";
+  if (/HONOR PLATA FEM/.test(c)) return 1;
+  if (/1ª AUTON[OÓ]MICA/.test(c)) return m ? 1 : 2;
+  if (/2ª AUTON[OÓ]MICA/.test(c)) return 2;
+  return 3;
+}
+const durMin = i => { const c = i.r.cat.toUpperCase(); return /BENJAM/.test(c) ? 40 : /ALEV/.test(c) ? 50 : /INFANT/.test(c) ? 60 : 70; };
+function asignarVestuarios(lista) {   // partidos de casa de un mismo día -> Map(partido -> 2 | 3 | null)
+  const ocupado = { 2: [], 3: [] }, sol = new Map();
+  const libre = (sala, [a, b]) => ocupado[sala].every(([c, d]) => b <= c || a >= d);
+  lista.filter(i => i.hora && !i.aplazado).sort((x, y) => nivel(x) - nivel(y) || x.hora.localeCompare(y.hora)).forEach(i => {
+    const [h, m] = i.hora.split(":").map(Number), t = h * 60 + m, w = [t - ANTES, t + durMin(i) + DESPUES];
+    const pref = sexoDe(i.mio) === "F" ? 3 : 2, sala = [pref, pref === 2 ? 3 : 2].find(s => libre(s, w));
+    if (sala) ocupado[sala].push(w);
+    sol.set(i, sala || null);
+  });
+  return sol;
+}
+function pintarVest() {
+  const cont = $("vlist"); cont.innerHTML = "";
+  const vie = sumarDias(sab, -1), dom = sumarDias(sab, 1);
+  $("vtitulo").textContent = `VESTUARIOS · partidos en casa · ${fechaTxt(sab).slice(0, 5)} y ${fechaTxt(dom)}`;
+  const casa = items.filter(i => i.casa && i.fecha >= vie && i.fecha <= dom);
+  if (!casa.length) { el("p", "No hay partidos en casa este fin de semana.", "sub", cont); return; }
+  [...new Set(casa.map(i => i.fecha))].sort().forEach(dia => {
+    const lista = casa.filter(i => i.fecha === dia), sol = asignarVestuarios(lista);
+    el("h2", `${diaTxt(dia).toUpperCase()} ${fechaTxt(dia)}`, null, cont);
+    const t = el("table", null, "vt", cont), tr0 = el("tr", null, null, el("thead", null, null, t));
+    ["Hora", "Categoría", "Equipo SAR", "Vestuario SAR", "Rival", "Vestuario rival"].forEach(x => el("th", x, null, tr0));
+    const tb = el("tbody", null, null, t);
+    lista.sort((a, b) => (a.hora || "99:99").localeCompare(b.hora || "99:99") || a.r.cat.localeCompare(b.r.cat)).forEach(i => {
+      const sala = sol.get(i), tr = el("tr", null, null, tb);
+      const aviso = i.aplazado ? "APLAZADO" : !i.hora ? "FALTA HORA" : !sala ? "SIN HUECO ⚠" : "";
+      el("td", i.hora || "—", "b", tr); el("td", i.r.cat, null, tr); el("td", i.mio, "b", tr);
+      el("td", aviso || sala, "sala" + (aviso ? " conf" : ""), tr);
+      el("td", i.riv, null, tr); el("td", aviso ? "" : sala === 2 ? 1 : 4, "sala", tr);
+    });
+  });
+}
+function abrirVest() { $("panel").hidden = true; $("vest").hidden = false; pintarVest(); window.scrollTo(0, 0); }
+function cerrarVest() { $("vest").hidden = true; $("panel").hidden = false; }
+
 // ----- arranque -----
 $("ant").onclick = () => { sab = sumarDias(sab, -7); pintar(); };
 $("sig").onclick = () => { sab = sumarDias(sab, 7); pintar(); };
@@ -166,6 +215,9 @@ $("gact").onclick = () => cargarG(true);
 $("gexcel").onclick = excelG;
 $("gwa").onclick = whatsapp;
 $("gcantina").onclick = cantina;
+$("gvest").onclick = abrirVest;
+$("vvolver").onclick = cerrarVest;
+$("vprint").onclick = () => window.print();
 $("gcopiar").onclick = async () => msg((await copiar()) ? "Texto copiado ✓" : "No se pudo copiar", false);
 $("pinok").onclick = () => { G.pin = $("pin").value.trim(); guardarG(); $("pin").value = ""; if (G.pin) cargarG(false); };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };
