@@ -99,10 +99,10 @@ function tarjeta(i, cont) {
   const th = campo("Hora", "time", i.hora), tf = campo("Fecha", "date", i.fecha), ta = campo("Aplazado", "checkbox", i.aplazado), tn = campo("Nota", "text", i.nota);
   tn.maxLength = 200; tn.placeholder = "opcional";
   const guardar = async () => {
-    const v = { hora: th.value === i.hFed ? "" : th.value, fecha: tf.value === i.fFed ? "" : tf.value, aplazado: ta.checked, nota: tn.value.trim() };
+    const v = { hora: th.value === i.hFed ? "" : th.value, fecha: tf.value === i.fFed ? "" : tf.value, aplazado: ta.checked, nota: tn.value.trim(), vest: i.o.vest || "", vestR: i.o.vestR || "" };
     msg("Guardando…");
     try {
-      G.aj = (await api("POST", { key: i.k, valor: !v.hora && !v.fecha && !v.aplazado && !v.nota ? null : v })).ajustes; guardarG();
+      G.aj = (await api("POST", { key: i.k, valor: !v.hora && !v.fecha && !v.aplazado && !v.nota && !v.vest && !v.vestR ? null : v })).ajustes; guardarG();
       items = construir(crudas); msg("Guardado ✓"); pintar();
     } catch (e) { msg("No se ha guardado: " + e.message, true); }
   };
@@ -175,26 +175,68 @@ const durMin = i => {   // duración del partido en minutos
   if (/BENJAM/.test(c)) return 4 * 10 + 3 * 3;                       // 4 partes de 10 min y 3 descansos de 3 min
   return 2 * (/ALEV/.test(c) ? 20 : /INFANT/.test(c) ? 25 : 30) + DESCANSO;   // 2 partes de 20 / 25 / 30 min
 };
-function asignarVestuarios(lista) {   // partidos de casa de un mismo día -> Map(partido -> {sala: 2 | 3 | null, nota})
-  const ocupado = { 2: [], 3: [] }, sol = new Map();
-  const choques = (sala, [a, b]) => ocupado[sala].filter(o => !(b <= o.w[0] || a >= o.w[1]));
+const ventana = i => { const [h, m] = i.hora.split(":").map(Number), t = h * 60 + m; return [t - ANTES, t + durMin(i) + DESPUES]; };
+// Club del rival: quita letras o números finales (A, B, F 1...) para saber si dos rivales son del mismo club
+const club = n => { let c = n.toUpperCase().replace(/\s+/g, " ").trim(), p; do { p = c; c = c.replace(/ (?:[A-Z]|\d+)$/, ""); } while (c !== p && c.includes(" ")); return c; };
+// Reparto de vestuarios de un día -> Map(partido -> {sala, nota, manual, rival: {sala, nota, manual}})
+// Locales: 2 (chicos) y 3 (chicas). Rivales: 1 (chicos) y 4 (chicas). Los benjamines se juntan: los nuestros por sexo, los rivales por club.
+function asignarVestuarios(lista) {
+  const ocupado = { 1: [], 2: [], 3: [], 4: [] }, sol = new Map();
   const benj = i => /BENJAM/i.test(i.r.cat);
-  lista.filter(i => i.hora && !i.aplazado).sort((x, y) => nivel(x) - nivel(y) || x.hora.localeCompare(y.hora)).forEach(i => {
-    const [h, m] = i.hora.split(":").map(Number), t = h * 60 + m, w = [t - ANTES, t + durMin(i) + DESPUES];
-    const s = sexoDe(i.mio), pref = s === "F" ? 3 : 2, orden = [pref, pref === 2 ? 3 : 2];
-    let sala = orden.find(r => !choques(r, w).length), nota = "";
-    if (!sala && benj(i)) {   // se juntan benjamines: juntos si son del mismo sexo, por turnos si no (máximo 2 equipos a la vez)
-      const cand = orden.map(r => [r, choques(r, w)]).filter(([, c]) => c.length === 1 && benj(c[0].i));
-      const junto = cand.find(([, c]) => sexoDe(c[0].i.mio) === s), turno = cand[0];
-      if (junto) { sala = junto[0]; nota = "junto con " + junto[1][0].i.mio; }
-      else if (turno) { sala = turno[0]; nota = "por turnos con " + turno[1][0].i.mio + " · ajustar tiempos"; }
-    }
-    if (sala) ocupado[sala].push({ w, i });
-    sol.set(i, { sala: sala || null, nota });
-  });
+  const choques = (sala, w) => ocupado[sala].filter(o => !(w[1] <= o.w[0] || w[0] >= o.w[1]));
+  const nombre = o => (o.rival ? o.i.riv : o.i.mio);
+  const lista2 = c => [...new Set(c.map(nombre))].join(", ");
+  const mismo = (o, i, rival) => benj(o.i) && o.rival === rival && (rival ? club(o.i.riv) === club(i.riv) : sexoDe(o.i.mio) === sexoDe(i.mio));
+  const entrada = i => { if (!sol.has(i)) sol.set(i, { sala: null, nota: "", rival: { sala: null, nota: "" } }); return sol.get(i); };
+  const poner = (i, rival, sala, nota, manual) => {
+    const e = entrada(i);
+    Object.assign(rival ? e.rival : e, { sala, nota, manual: !!manual });
+    if (i.hora && sala) ocupado[sala].push({ w: ventana(i), i, rival });
+  };
+  [false, true].forEach(rival => lista.filter(i => !i.aplazado && i.o[rival ? "vestR" : "vest"]).forEach(i => {   // 1) lo puesto a mano manda
+    const sala = +i.o[rival ? "vestR" : "vest"], ch = i.hora ? choques(sala, ventana(i)) : [];
+    const ok = !ch.length || ch.every(o => mismo(o, i, rival));
+    poner(i, rival, sala, !ch.length ? "" : (ok ? "junto con " : "⚠ coincide con ") + lista2(ch), true);
+  }));
+  const auto = lista.filter(i => i.hora && !i.aplazado).sort((x, y) => nivel(x) - nivel(y) || x.hora.localeCompare(y.hora));
+  [false, true].forEach(rival => auto.filter(i => !i.o[rival ? "vestR" : "vest"]).forEach(i => {   // 2) el resto, automático
+    const w = ventana(i), s = sexoDe(i.mio), b = benj(i);
+    const pref = rival ? (s === "F" ? 4 : 1) : (s === "F" ? 3 : 2), orden = [pref, rival ? (pref === 1 ? 4 : 1) : (pref === 2 ? 3 : 2)];
+    const ok = r => { const c = choques(r, w); return !c.length || (b && c.every(o => mismo(o, i, rival))); };
+    const turnos = r => b && choques(r, w).every(o => benj(o.i) && o.rival === rival);
+    let sala = orden.find(ok), nota = "";
+    if (sala) { const c = choques(sala, w); if (c.length) nota = "junto con " + lista2(c); }
+    else if ((sala = orden.find(turnos))) nota = "por turnos con " + lista2(choques(sala, w)) + " · ajustar tiempos";
+    else if (rival) { sala = pref; nota = "⚠ coincide con " + lista2(choques(pref, w)); }
+    poner(i, rival, sala || null, nota);
+  }));
   return sol;
 }
+function vmsg(t, error) { const m = $("vmsg"); m.textContent = t; m.style.color = error ? "#c0392b" : ""; }
+async function guardarVest(i, campo, valor) {
+  const v = { hora: i.o.hora || "", fecha: i.o.fecha || "", aplazado: !!i.o.aplazado, nota: i.o.nota || "", vest: i.o.vest || "", vestR: i.o.vestR || "", [campo]: valor };
+  const vacio = !v.hora && !v.fecha && !v.aplazado && !v.nota && !v.vest && !v.vestR;
+  vmsg("Guardando…");
+  try {
+    G.aj = (await api("POST", { key: i.k, valor: vacio ? null : v })).ajustes; guardarG();
+    const ok = vacio || ((G.aj[i.k] || {})[campo] || "") === valor;
+    items = construir(crudas); pintarVest();
+    if (ok) vmsg("Guardado ✓"); else vmsg("⚠ El servidor no guarda los vestuarios: falta actualizar el Worker de Cloudflare.", true);
+  } catch (e) { vmsg("No se ha guardado: " + e.message, true); }
+}
+function celdaVest(tr, texto, { nota = "", conf = false, valor = "", cambiar = null }) {
+  const td = el("td", null, "sala" + (conf ? " conf" : ""), tr);
+  el("div", texto, null, td);
+  if (nota) el("div", nota, null, td).style.cssText = "font-size:12px;font-weight:normal";
+  if (!cambiar) return;
+  if (valor) el("div", "✎ manual", "nop", td).style.cssText = "font-size:11px;font-weight:normal";
+  const sel = el("select", null, "nop", td);
+  sel.style.cssText = "font-size:13px;margin-top:4px;font-weight:normal";
+  [["", "auto"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]].forEach(([v, t]) => { el("option", t, null, sel).value = v; });
+  sel.value = valor; sel.onchange = () => cambiar(sel.value);
+}
 function pintarVest() {
+  if (!$("vmsg")) { const p = el("p", null, "sub nop"); p.id = "vmsg"; $("vest").insertBefore(p, $("vlist")); }
   const cont = $("vlist"); cont.innerHTML = "";
   const vie = sumarDias(sab, -1), dom = sumarDias(sab, 1);
   $("vtitulo").textContent = `VESTUARIOS · partidos en casa · ${fechaTxt(sab).slice(0, 5)} y ${fechaTxt(dom)}`;
@@ -207,12 +249,12 @@ function pintarVest() {
     ["Hora", "Categoría", "Equipo SAR", "Vestuario SAR", "Rival", "Vestuario rival"].forEach(x => el("th", x, null, tr0));
     const tb = el("tbody", null, null, t);
     lista.sort((a, b) => (a.hora || "99:99").localeCompare(b.hora || "99:99") || a.r.cat.localeCompare(b.r.cat)).forEach(i => {
-      const r = sol.get(i) || {}, sala = r.sala, tr = el("tr", null, null, tb);
-      const aviso = i.aplazado ? "APLAZADO" : !i.hora ? "FALTA HORA" : !sala ? "SIN HUECO ⚠" : "";
+      const r = sol.get(i) || {}, rv = r.rival || {}, sala = r.sala, tr = el("tr", null, null, tb);
+      const aviso = i.aplazado ? "APLAZADO" : sala ? "" : !i.hora ? "FALTA HORA" : "SIN HUECO ⚠";
       el("td", i.hora || "—", "b", tr); el("td", i.r.cat, null, tr); el("td", i.mio, "b", tr);
-      const cs = el("td", aviso || sala, "sala" + (aviso ? " conf" : ""), tr);
-      if (!aviso && r.nota) el("div", r.nota, null, cs).style.cssText = "font-size:12px;font-weight:normal";
-      el("td", i.riv, null, tr); el("td", aviso ? "" : sala === 2 ? 1 : 4, "sala", tr);
+      celdaVest(tr, aviso || sala, { nota: aviso ? "" : r.nota, conf: !!aviso, valor: i.o.vest || "", cambiar: i.aplazado ? null : v => guardarVest(i, "vest", v) });
+      el("td", i.riv, null, tr);
+      celdaVest(tr, i.aplazado ? "" : rv.sala || "", { nota: i.aplazado ? "" : rv.nota || "", valor: i.o.vestR || "", cambiar: i.aplazado ? null : v => guardarVest(i, "vestR", v) });
     });
   });
 }
