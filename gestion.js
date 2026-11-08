@@ -265,6 +265,7 @@ function abrirVest() { $("panel").hidden = true; $("vest").hidden = false; pinta
 function cerrarVest() { $("vest").hidden = true; $("panel").hidden = false; }
 
 // ===== Cartel imprimible: destacados en grande + resto en tabla =====
+const pabCorto = p => !p ? "Por confirmar" : /BOMBONERA/i.test(p) ? "La Bombonera" : p;
 function pintarCartel() {
   const l = visibles().filter(i => i.casa), cont = $("clista"), eq = $("geq").value;   // solo partidos en casa
   cont.innerHTML = "";
@@ -283,7 +284,7 @@ function pintarCartel() {
       const p = el("div", null, "pab", dr);
       el("span", i.casa ? "CASA" : "FUERA", "tg", p);
       if (i.aplazado) el("span", "APLAZADO", "tg ap", p);
-      p.appendChild(document.createTextNode(i.r.pab || "Pabellón por confirmar"));
+      p.appendChild(document.createTextNode(pabCorto(i.r.pab)));
       if (i.nota) el("div", i.nota, "pab", dr);
     });
   }
@@ -294,15 +295,14 @@ function pintarCartel() {
       if (i.fecha !== dia) {
         dia = i.fecha; el("div", `${diaTxt(dia)} ${fechaTxt(dia)}`, "dg", cont);
         const t = el("table", null, "rt", cont), tr0 = el("tr", null, null, el("thead", null, null, t));
-        ["Hora", "Categoría", "Partido", "", "Pabellón"].forEach(x => el("th", x, null, tr0));
+        ["Hora", "Categoría", "Partido", "Pabellón"].forEach(x => el("th", x, null, tr0));
         tb = el("tbody", null, null, t);
       }
       const tr = el("tr", null, (i.casa ? "casa" : "") + (i.aplazado ? " apl" : ""), tb);
       el("td", i.aplazado ? "APLAZADO" : i.hora || "—", "b", tr);
       el("td", i.r.cat, null, tr);
       el("td", `${i.mio} ${i.casa ? "vs" : "en"} ${i.riv}` + (i.nota ? ` · ${i.nota}` : ""), "b", tr);
-      el("td", i.casa ? "CASA" : "FUERA", null, tr);
-      el("td", i.r.pab || "Por confirmar", null, tr);
+      el("td", pabCorto(i.r.pab), null, tr);
     });
   }
   if (!l.length) el("p", "No hay partidos en casa en ese fin de semana.", "sub", cont);
