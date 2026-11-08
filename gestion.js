@@ -266,7 +266,7 @@ function cerrarVest() { $("vest").hidden = true; $("panel").hidden = false; }
 
 // ===== Cartel imprimible: destacados en grande + resto en tabla =====
 function pintarCartel() {
-  const l = visibles(), cont = $("clista"), eq = $("geq").value;
+  const l = visibles().filter(i => i.casa), cont = $("clista"), eq = $("geq").value;   // solo partidos en casa
   cont.innerHTML = "";
   $("crango").textContent = `${rangoTxt()}` + (eq ? ` · ${eq}` : "");
   const dest = l.filter(i => G.dest[i.k]), resto = l.filter(i => !G.dest[i.k]);
@@ -305,7 +305,7 @@ function pintarCartel() {
       el("td", i.r.pab || "Por confirmar", null, tr);
     });
   }
-  if (!l.length) el("p", "No hay partidos en ese fin de semana.", "sub", cont);
+  if (!l.length) el("p", "No hay partidos en casa en ese fin de semana.", "sub", cont);
   $("cpie").textContent = `Generado el ${new Date().toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })} · horarios sujetos a cambios`;
 }
 function abrirCartel() { $("panel").hidden = true; $("cartel").hidden = false; pintarCartel(); window.scrollTo(0, 0); }
