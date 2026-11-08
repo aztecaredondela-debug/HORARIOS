@@ -33,12 +33,42 @@ table.vt td{padding:8px;border-bottom:1px solid var(--borde)}
 .b{font-weight:bold}.sala{font-size:22px;font-weight:bold;text-align:center}.conf{color:#c0392b;font-size:15px}
 @media print{
   body{background:#fff;color:#000;padding:0}
-  .caja>*:not(#vest){display:none!important}
+  .caja>*:not(#vest):not(#cartel){display:none!important}
   #vest .nop{display:none!important}
   table.vt th{background:#ddd!important;color:#000!important}
   table.vt th,table.vt td{border:1px solid #000!important}
   .conf{color:#000!important}.sub{color:#000!important}
 }
+
+/* ===== Cartel imprimible ===== */
+#cartel{background:#fff;color:#111;border-radius:12px;padding:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#cartel .cab-c{display:flex;align-items:center;gap:16px;background:#1f3864;color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px}
+#cartel .cab-c img{width:72px;height:72px;border-radius:12px;background:#fff}
+#cartel .cab-c h1{margin:0;font-size:30px;letter-spacing:1px;line-height:1.1}
+#cartel .cab-c .rg{margin:4px 0 0;font-size:18px;opacity:.95}
+#cartel h2.sec-c{margin:16px 0 8px;font-size:15px;letter-spacing:2px;color:#1f3864;border-bottom:3px solid #1f3864;padding-bottom:4px}
+#cartel .cd{display:flex;gap:16px;align-items:center;border:3px solid #1f3864;border-radius:14px;padding:12px 16px;margin-bottom:10px;break-inside:avoid;background:#f3f6fc}
+#cartel .cd.casa{border-color:#2e7d32;background:#e8f5e9}
+#cartel .cd.apl{border-color:#c0392b;background:#fdecea}
+#cartel .cd .izq{min-width:130px;text-align:center;border-right:2px solid rgba(0,0,0,.2);padding-right:16px}
+#cartel .cd .dia{font-size:15px;font-weight:bold;text-transform:uppercase}
+#cartel .cd .hr{font-size:44px;font-weight:bold;line-height:1.05}
+#cartel .cd .hr.pend{font-size:20px;background:none}
+#cartel .cd .der{flex:1}
+#cartel .cd .cat{font-size:14px;font-weight:bold;color:#444;text-transform:uppercase}
+#cartel .cd .eq{font-size:25px;font-weight:bold;line-height:1.15;margin:2px 0}
+#cartel .cd .pab{font-size:15px}
+#cartel .cd .tg{display:inline-block;font-size:13px;font-weight:bold;padding:2px 10px;border-radius:6px;background:#1f3864;color:#fff;margin-right:6px}
+#cartel .cd.casa .tg{background:#2e7d32}#cartel .cd.apl .tg.ap{background:#c0392b}
+#cartel table.rt{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:6px}
+#cartel table.rt th{background:#dde4f0;color:#111;text-align:left;padding:5px 8px;border:1px solid #999}
+#cartel table.rt td{padding:5px 8px;border:1px solid #999;vertical-align:top}
+#cartel table.rt tr.casa td{background:#e8f5e9}
+#cartel table.rt tr.apl td{background:#fdecea;text-decoration:line-through}
+#cartel .dg{margin:10px 0 4px;font-weight:bold;font-size:15px;text-transform:uppercase}
+#cartel .pie{margin-top:12px;font-size:12px;color:#555;text-align:right}
+@page{size:A4 portrait;margin:10mm}
+@media print{#cartel{padding:0;border-radius:0}#cartel .nop{display:none!important}}
 </style></head><body><div class="caja">
 <h1>Gestión de horarios · SAR</h1>
 <p class="sub"><a href="index.html">← Volver a la app</a></p>
@@ -61,6 +91,7 @@ table.vt td{padding:8px;border-bottom:1px solid var(--borde)}
     <button class="prim" id="gwa">Compartir por WhatsApp</button>
     <button class="prim" id="gcantina">☕ CANTINA</button>
     <button class="prim" id="gvest">🚪 VESTUARIOS</button>
+    <button class="prim" id="gimp">🖨 IMPRIMIR</button>
     <button class="sec" id="gcopiar">Copiar texto</button>
     <button class="sec" id="gact">↻ Actualizar</button>
   </div>
@@ -71,6 +102,13 @@ table.vt td{padding:8px;border-bottom:1px solid var(--borde)}
   <h1 id="vtitulo"></h1>
   <div id="vlist"></div>
   <p class="sub">Equipos locales: vestuarios 2 y 3 · Equipos visitantes: vestuarios 1 y 4</p>
+</div>
+<div id="cartel" hidden>
+  <div class="barra nop"><button class="sec" id="cvolver">← Volver</button><button class="prim" id="cprint">🖨 Imprimir / guardar PDF</button></div>
+  <p class="sub nop">Se imprime lo que ves en el panel (fechas y equipo elegidos). Marca con ★ los partidos destacados en cada tarjeta.</p>
+  <div class="cab-c"><img src="icon-192.png" alt=""><div><h1>PARTIDOS DEL FIN DE SEMANA</h1><p class="rg" id="crango"></p></div></div>
+  <div id="clista"></div>
+  <p class="pie" id="cpie"></p>
 </div>
 </div>
 <script src="datos.js"></script>

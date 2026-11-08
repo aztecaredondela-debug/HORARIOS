@@ -1,6 +1,6 @@
 // ===== Gestión de horarios del fin de semana (usa datos.js) =====
 const GK = "sar_gestion_v1";
-let G = { pin: "", aj: {} }, sab = null, items = [];
+let G = { pin: "", aj: {}, dest: {} }, sab = null, items = [];
 try { G = { ...G, ...JSON.parse(localStorage.getItem(GK)) }; } catch {}
 const guardarG = () => { try { localStorage.setItem(GK, JSON.stringify(G)); } catch {} };
 const DSEM = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -87,6 +87,9 @@ function tarjeta(i, cont) {
   el("span", i.casa ? "CASA" : "FUERA", "tag" + (i.casa ? " casa" : ""), cab);
   el("b", i.hora || "Sin hora", "hora" + (i.hora ? "" : " pend"), cab);
   if (i.aplazado) el("span", "APLAZADO", "tag apl", cab);
+  const est = el("button", G.dest[i.k] ? "★ Destacado" : "☆ Destacar", "sec", cab);
+  est.style.cssText = "padding:3px 10px;font-size:12px;margin-left:auto";
+  est.onclick = () => { if (G.dest[i.k]) delete G.dest[i.k]; else G.dest[i.k] = 1; guardarG(); pintar(); };
   el("div", `${i.r.cat} · ${i.mio} ${i.casa ? "vs" : "en"} ${i.riv}`, "tit", c);
   const cambios = [];
   if (i.o.hora && i.o.hora !== i.hFed) cambios.push("hora federación: " + (i.hFed || "sin hora"));
@@ -261,6 +264,53 @@ function pintarVest() {
 function abrirVest() { $("panel").hidden = true; $("vest").hidden = false; pintarVest(); window.scrollTo(0, 0); }
 function cerrarVest() { $("vest").hidden = true; $("panel").hidden = false; }
 
+// ===== Cartel imprimible: destacados en grande + resto en tabla =====
+function pintarCartel() {
+  const l = visibles(), cont = $("clista"), eq = $("geq").value;
+  cont.innerHTML = "";
+  $("crango").textContent = `${rangoTxt()}` + (eq ? ` · ${eq}` : "");
+  const dest = l.filter(i => G.dest[i.k]), resto = l.filter(i => !G.dest[i.k]);
+  if (dest.length) {
+    el("h2", "★ PARTIDOS DESTACADOS", "sec-c", cont);
+    dest.forEach(i => {
+      const c = el("div", null, "cd" + (i.casa ? " casa" : "") + (i.aplazado ? " apl" : ""), cont);
+      const iz = el("div", null, "izq", c);
+      el("div", `${diaTxt(i.fecha)} ${fechaTxt(i.fecha).slice(0, 5)}`, "dia", iz);
+      el("div", i.aplazado ? "APLAZADO" : i.hora || "POR CONFIRMAR", "hr" + (i.hora && !i.aplazado ? "" : " pend"), iz);
+      const dr = el("div", null, "der", c);
+      el("div", i.r.cat, "cat", dr);
+      el("div", `${i.mio} ${i.casa ? "vs" : "en"} ${i.riv}`, "eq", dr);
+      const p = el("div", null, "pab", dr);
+      el("span", i.casa ? "CASA" : "FUERA", "tg", p);
+      if (i.aplazado) el("span", "APLAZADO", "tg ap", p);
+      p.appendChild(document.createTextNode(i.r.pab || "Pabellón por confirmar"));
+      if (i.nota) el("div", i.nota, "pab", dr);
+    });
+  }
+  if (resto.length) {
+    el("h2", dest.length ? "RESTO DE PARTIDOS" : "PARTIDOS", "sec-c", cont);
+    let dia = "", tb = null;
+    resto.forEach(i => {
+      if (i.fecha !== dia) {
+        dia = i.fecha; el("div", `${diaTxt(dia)} ${fechaTxt(dia)}`, "dg", cont);
+        const t = el("table", null, "rt", cont), tr0 = el("tr", null, null, el("thead", null, null, t));
+        ["Hora", "Categoría", "Partido", "", "Pabellón"].forEach(x => el("th", x, null, tr0));
+        tb = el("tbody", null, null, t);
+      }
+      const tr = el("tr", null, (i.casa ? "casa" : "") + (i.aplazado ? " apl" : ""), tb);
+      el("td", i.aplazado ? "APLAZADO" : i.hora || "—", "b", tr);
+      el("td", i.r.cat, null, tr);
+      el("td", `${i.mio} ${i.casa ? "vs" : "en"} ${i.riv}` + (i.nota ? ` · ${i.nota}` : ""), "b", tr);
+      el("td", i.casa ? "CASA" : "FUERA", null, tr);
+      el("td", i.r.pab || "Por confirmar", null, tr);
+    });
+  }
+  if (!l.length) el("p", "No hay partidos en ese fin de semana.", "sub", cont);
+  $("cpie").textContent = `Generado el ${new Date().toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })} · horarios sujetos a cambios`;
+}
+function abrirCartel() { $("panel").hidden = true; $("cartel").hidden = false; pintarCartel(); window.scrollTo(0, 0); }
+function cerrarCartel() { $("cartel").hidden = true; $("panel").hidden = false; }
+
 // ----- arranque -----
 $("ant").onclick = () => { sab = sumarDias(sab, -7); pintar(); };
 $("sig").onclick = () => { sab = sumarDias(sab, 7); pintar(); };
@@ -273,6 +323,9 @@ $("gcantina").onclick = cantina;
 $("gvest").onclick = abrirVest;
 $("vvolver").onclick = cerrarVest;
 $("vprint").onclick = () => window.print();
+$("gimp").onclick = abrirCartel;
+$("cvolver").onclick = cerrarCartel;
+$("cprint").onclick = () => window.print();
 $("gcopiar").onclick = async () => msg((await copiar()) ? "Texto copiado ✓" : "No se pudo copiar", false);
 $("pinok").onclick = () => { G.pin = $("pin").value.trim(); guardarG(); $("pin").value = ""; if (G.pin) cargarG(false); };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };
