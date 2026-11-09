@@ -21,17 +21,23 @@ jobs:
           API="https://resultadosbalonmano.isquad.es/json/partidos_equipos_consultas.php"
           FECHA=$(TZ=Europe/Madrid date +%F)
 
-          # 1) abrir la página para obtener la cookie de sesión
+          # 1) abrir la página (por si genera alguna cookie)
           curl -sS -c cookies.txt -A "$UA" -H "Accept-Language: es-ES,es;q=0.9" -o /dev/null -w "Pagina: HTTP %{http_code}\n" "$PAGINA"
 
-          # 2) pedir los partidos con esa cookie
-          CODIGO=$(curl -sS -b cookies.txt -A "$UA" -X POST "$API" \
+          # 2) pedir los partidos con las mismas cookies que manda el navegador
+          CODIGO=$(curl -sS -A "$UA" -X POST "$API" \
+            -H "Cookie: selected_language=es; mylang=1" \
             -H "Accept: application/json, text/javascript, */*; q=0.01" \
-            -H "Accept-Language: es-ES,es;q=0.9" \
+            -H "Accept-Language: es-ES,es;q=0.9,gl;q=0.8,fr;q=0.7" \
+            -H "Accept-Encoding: gzip, deflate" \
             -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
             -H "Origin: https://resultadosbalonmano.isquad.es" \
             -H "Referer: $PAGINA" \
             -H "X-Requested-With: XMLHttpRequest" \
+            -H "Sec-Fetch-Site: same-origin" \
+            -H "Sec-Fetch-Mode: cors" \
+            -H "Sec-Fetch-Dest: empty" \
+            --compressed \
             --data "accion=obtener_partidos&id_ambito=20&fecha_actual=$FECHA&consulta=0&id_superficie=1" \
             -o respuesta.json -w "%{http_code}")
 
@@ -39,7 +45,7 @@ jobs:
           head -c 400 respuesta.json; echo
 
           if [ "$CODIGO" != "200" ]; then
-            echo "La federacion respondio $CODIGO: bloquea tambien las IPs de GitHub"
+            echo "La federacion respondio $CODIGO"
             exit 1
           fi
 
