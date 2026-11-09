@@ -1,0 +1,53 @@
+name: Actualizar partidos SAR
+
+on:
+  workflow_dispatch:        # botón manual "Run workflow"
+  schedule:
+    - cron: "15 */6 * * *"  # cada 6 horas
+
+permissions:
+  contents: write
+
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pedir partidos a la federación
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+          PAGINA="https://resultadosbalonmano.isquad.es/partidos_equipos.php?seleccion=0&id_ambito=0&id_territorial=20&id_superficie=1&iframe=0"
+          API="https://resultadosbalonmano.isquad.es/json/partidos_equipos_consultas.php"
+          FECHA=$(TZ=Europe/Madrid date +%F)
+
+          # 1) abrir la página para obtener la cookie de sesión
+          curl -sS -c cookies.txt -A "$UA" -H "Accept-Language: es-ES,es;q=0.9" -o /dev/null -w "Pagina: HTTP %{http_code}\n" "$PAGINA"
+
+          # 2) pedir los partidos con esa cookie
+          CODIGO=$(curl -sS -b cookies.txt -A "$UA" -X POST "$API" \
+            -H "Accept: application/json, text/javascript, */*; q=0.01" \
+            -H "Accept-Language: es-ES,es;q=0.9" \
+            -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
+            -H "Origin: https://resultadosbalonmano.isquad.es" \
+            -H "Referer: $PAGINA" \
+            -H "X-Requested-With: XMLHttpRequest" \
+            --data "accion=obtener_partidos&id_ambito=20&fecha_actual=$FECHA&consulta=0&id_superficie=1" \
+            -o respuesta.json -w "%{http_code}")
+
+          echo "API: HTTP $CODIGO"
+          head -c 400 respuesta.json; echo
+
+          if [ "$CODIGO" != "200" ]; then
+            echo "La federacion respondio $CODIGO: bloquea tambien las IPs de GitHub"
+            exit 1
+          fi
+
+          cp respuesta.json datos-federacion.json
+
+      - name: Guardar en el repositorio
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add datos-federacion.json
+          git diff --cached --quiet || (git commit -m "Actualizar partidos" && git push)
