@@ -15,18 +15,34 @@ const pad = n => String(n).padStart(2, "0");
 const diaStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 // ===== descarga =====
+// Plan A: Worker de Cloudflare. Plan B (si la federación bloquea al Worker): copia "partidos.json"
+// que guarda GitHub Actions en el repositorio cada pocas horas.
+let copiaFecha = null;
 async function descargar() {
   const hoy = diaStr();
-  const r = PROXY
-    ? await fetch(`${PROXY}?fecha=${hoy}`)
-    : await fetch(URL_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest" },
-        body: new URLSearchParams({ accion: "obtener_partidos", id_ambito: ID_AMBITO, fecha_actual: hoy, consulta: "0", id_superficie: "1" }),
-      });
+  copiaFecha = null;
+  if (PROXY) {
+    let fallo = "";
+    try {
+      const r = await fetch(`${PROXY}?fecha=${hoy}`);
+      if (r.ok) { const t = r.headers.get("X-Copia"); if (t) copiaFecha = new Date(+t); return await r.json(); }
+      fallo = "La federación respondió " + r.status;
+    } catch (e) { fallo = "sin conexión"; }
+    try {
+      const c = await fetch("partidos.json?t=" + Date.now(), { cache: "no-store" });
+      if (c.ok) { copiaFecha = new Date(c.headers.get("last-modified") || Date.now()); return await c.json(); }
+    } catch {}
+    throw new Error(fallo);
+  }
+  const r = await fetch(URL_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest" },
+    body: new URLSearchParams({ accion: "obtener_partidos", id_ambito: ID_AMBITO, fecha_actual: hoy, consulta: "0", id_superficie: "1" }),
+  });
   if (!r.ok) throw new Error("La federación respondió " + r.status);
   return r.json();
 }
+
 
 function aLista(js) {
   if (Array.isArray(js)) return js;
@@ -129,7 +145,8 @@ async function datos(forzar) {
   try {
     const rows = procesar(aLista(await descargar()));
     try { localStorage.setItem(CLAVE, JSON.stringify({ t: Date.now(), rows })); } catch {}
-    aviso = ""; return rows;
+    aviso = copiaFecha ? `Partidos actualizados el ${copiaFecha.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}` : "";
+    return rows;
   } catch (e) {
     let msg = e.message;
     if (e instanceof TypeError) msg = PROXY ? "sin conexión" : "sin conexión o la federación bloquea el acceso directo (hace falta el Worker, mira LEEME.txt)";
