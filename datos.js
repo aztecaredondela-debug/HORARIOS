@@ -111,12 +111,16 @@ function procesar(lista) {
   return out.sort((a, b) => c(k(a.ts), k(b.ts)) || c(a.cat, b.cat) || c(a.comp, b.comp));
 }
 
+// "En casa" = se juega en La Bombonera (el pabellón manda, no quién figura como local).
+// Si todavía no hay pabellón, se usa quién figura como local.
+const esCasa = r => (r.pab ? /bombonera/i.test(r.pab) : !!r.sarL);
+
 function aFilas(rows) {
   return rows.map(r => {
     let cf, mio, riv;
     if (r.sarL && r.sarV) { cf = "Derbi interno"; mio = `${r.local} / ${r.visitante}`; riv = "(SAR vs SAR)"; }
-    else if (r.sarL) { cf = "Casa"; mio = r.local; riv = r.visitante; }
-    else { cf = "Fuera"; mio = r.visitante; riv = r.local; }
+    else if (r.sarL) { cf = esCasa(r) ? "Casa" : "Fuera"; mio = r.local; riv = r.visitante; }
+    else { cf = esCasa(r) ? "Casa" : "Fuera"; mio = r.visitante; riv = r.local; }
     let clave = null, fecha = "Por confirmar", dia = "", hora = "Por confirmar", sinHora = true;
     if (r.ts) {
       const [f, h] = r.ts.split(" "), [y, m, d] = f.split("-").map(Number);
