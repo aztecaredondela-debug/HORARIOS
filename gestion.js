@@ -43,7 +43,7 @@ function construir(rows) {
     const [f0 = "", h0 = ""] = r.ts ? r.ts.split(" ") : [];
     const hFed = h0 && h0 !== "00:00" ? h0 : "";
     const doble = r.sarL && r.sarV;
-    return { r, k, o, casa: r.sarL, fFed: f0, hFed, fecha: o.fecha || f0, hora: o.hora || hFed, aplazado: !!o.aplazado, nota: o.nota || "",
+    return { r, k, o, casa: esCasa(r), fFed: f0, hFed, fecha: o.fecha || f0, hora: o.hora || hFed, aplazado: !!o.aplazado, nota: o.nota || "",
       mio: doble ? `${r.local} / ${r.visitante}` : r.sarL ? r.local : r.visitante,
       riv: doble ? "(SAR vs SAR)" : r.sarL ? r.visitante : r.local };
   });
